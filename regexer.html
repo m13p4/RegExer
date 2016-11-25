@@ -1,0 +1,49 @@
+<!doctype html>
+<html>
+    <head>
+        <meta name="viewport" content="width=device-width, maximum-scale=1.0, minimum-scale=1.0, initial-scale=1.0" />
+        <title>RegExer</title>
+        
+        <link rel="stylesheet" type="text/css" href="./regexer.css">
+        <script type="text/javascript" src="./regexer.min.js"></script>
+        <!-- experemental with alpha version of CSSC -->
+        <script type="text/javascript" src="https://csscjs.com/cssc.min.js"></script> 
+        <script type="text/javascript">
+            var regX;
+            window.onload = function()
+            {
+                regX = new RegExer("regexer");
+            };
+        </script>
+        <style type="text/css">
+            #regexer
+            {
+                top: 50px;
+                bottom: 40px;
+                position: absolute;
+                width: 100%;
+            }
+            #head
+            {
+                text-align: right;
+                font-family: monospace;
+                right: 11%;
+                position:absolute;
+            }
+            #copyright
+            {
+                bottom: 10px;
+                left: 11%;
+                position: absolute;
+                
+                font-family: monospace;
+            }
+        </style>
+            
+    </head>
+    <body>
+        <div id="head"><h1>RegExer - 1.1b</h1></div>
+        <div id="regexer"></div>
+        <div id="copyright">Copyright &copy; 2011 - 2016 by Pavel | <a href="https://regexer.de/impressum.php" target="_blank">Impressum</a> </div>
+    </body>
+</html>
