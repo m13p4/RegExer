@@ -29,7 +29,7 @@ var RegExer = function(appendToElem)
         
         regexGroups = [],
         regexPositionToGroup = [],
-        useCSSC = (typeof CSSC !== "undefined"),
+        useCSSC = (typeof CSSC !== "undefined"), //experemental with alpha version of CSSC
         parseError = false,
         mode = "match";
     
