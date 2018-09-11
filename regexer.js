@@ -4,7 +4,7 @@
  * @package RegExer
  * @version 1.1b
  *
- * @author Pavel
+ * @author m13p4
  * @copyright Pavel Meliantchenkov
  */
 
