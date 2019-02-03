@@ -1,8 +1,6 @@
 /**
- * REGEXER.JS - JavaScript for RegExer
- *
  * @package RegExer
- * @version 1.1b
+ * @version 1.2
  *
  * @author m13p4
  * @copyright Pavel Meliantchenkov
@@ -11,7 +9,8 @@
 var RegExer = function(appendToElem)
 {
     // Parameter & Elements
-    var parentElem, 
+    var VERSION = "1.2",
+        parentElem, 
         regexInputWrapperElem,
         regexInputElem,
         regexInputHighlightElem,
@@ -27,116 +26,124 @@ var RegExer = function(appendToElem)
         regexControllButtonMatch,
         regexControllButtonReplace,
         
+        regexControllModifierArea,
+        regexControllModifier_I,
+        regexControllModifier_G,
+        regexControllModifier_M,
+        
+        modifier_I_title = "Perform case-insensitive matching",
+        modifier_G_title = "Perform a global match (find all matches rather than stopping after the first match)",
+        modifier_M_title = "Perform multiline matching",
+        
+        modifier_I = false, 
+        modifier_G = true, 
+        modifier_M = false,
+        
         regexGroups = [],
         regexPositionToGroup = [],
+        /* @todo: implement currently version of CSSC */
         useCSSC = (typeof CSSC !== "undefined"), //experemental with alpha version of CSSC
         parseError = false,
         mode = "match";
     
-    // Methods
-    var init = function()
+    function _type(elem)
     {
-        if(!appendToElem)
-        {
-            parentElem = document.body;
-        }
-        else if(typeof appendToElem === 'string')
-        {
-            parentElem = document.getElementById(appendToElem);
-        }
-        else
-        {
-            parentElem = appendToElem;
-        } 
+        return Object.prototype.toString.call(elem);
+    }
+    function crElem(el, attr, innerHTML, toAppend)
+    {
+        var e = document.createElement(el), a = attr || {}, i, ta = toAppend || [];
+        
+        setAttr(e, attr);
+        if(innerHTML) e.innerHTML = innerHTML;
+        for(i = 0; i < ta.length; i++) e.appendChild(ta[i]);
+        
+        return e;
+    }
+    function getAttr(el, attr)
+    {
+        return el.getAttribute(attr);
+    }
+    function setAttr(el, attrObj, val)
+    {
+        var t = _type(attrObj), a = t === '[object Object]' ? attrObj : {}, i;
+        
+        if(t === '[object String]' && _type(val) === '[object String]') a[attrObj] = val;
+        
+        for(i in a) el.setAttribute(i, a[i]);
+    }
+    function addEvents(el, evObj)
+    {
+        for(var i in evObj) el.addEventListener(i, evObj[i]);
+    }
+    
+    function init()
+    {
+        parentElem = !appendToElem ? document.body : _type(appendToElem) === '[object String]' ? document.getElementById(appendToElem) : appendToElem;
         
         //Create Elements
         //Input
-        regexInputWrapperElem = document.createElement('div');
-        regexInputWrapperElem.setAttribute("id", "regexer_input");
+        regexInputElem          = crElem('textarea', {id: 'regexer_input_input'});
+        regexInputHighlightElem = crElem('pre',      {id: 'regexer_input_pre'});
+        regexInputReplaceElem   = crElem('input',    {id: 'regexer_input_replace', type: 'text'});
+        regexInputWrapperElem   = crElem('div',      {id: 'regexer_input'}, false, [regexInputElem, regexInputHighlightElem, regexInputReplaceElem]);
         
-        regexInputElem = document.createElement('textarea');
-        regexInputElem.setAttribute("id", "regexer_input_input");
-        
-        regexInputHighlightElem = document.createElement("pre");
-        regexInputHighlightElem.setAttribute("id", "regexer_input_pre");
-
-
         //Output
-        regexOutputWrapperElem = document.createElement("div");
-        regexOutputWrapperElem.setAttribute("id", "regexer_text");
-
-        regexOutputTextElem = document.createElement("textarea");
-        regexOutputTextElem.setAttribute("id", "regexer_text_txt");
+        regexOutputTextElem      = crElem('textarea', {id: 'regexer_text_txt'});
+        regexOutputHighlightElem = crElem('pre',      {id: 'regexer_text_pre'});
+        regexOutputReplaceElem   = crElem('textarea', {id: 'regexer_replace_txt', readonly: 'readonly'});
+        regexOutputWrapperElem   = crElem('div',      {id: 'regexer_text'}, false, [regexOutputTextElem, regexOutputHighlightElem, regexOutputReplaceElem]);
         
-        regexOutputHighlightElem = document.createElement("pre");
-        regexOutputHighlightElem.setAttribute("id", "regexer_text_pre");
-        
-        regexOutputReplaceElem = document.createElement("textarea");
-        regexOutputReplaceElem.setAttribute("id", "regexer_replace_txt");
-        regexOutputReplaceElem.setAttribute("readonly", "readonly");
-        
-        regexInputReplaceElem = document.createElement("input");
-        regexInputReplaceElem.setAttribute("id", "regexer_input_replace");
-        regexInputReplaceElem.setAttribute("type", "text");
-        
-
         /* Controlls */
-        regexControllArea = document.createElement("div");
-        regexControllArea.setAttribute("id", "regex_controll");
+        regexControllButtonMatch   = crElem('a', {id: 'regex_controll_match',   class: (mode === "match" ? 'sel' : '')},   'match');
+        regexControllButtonReplace = crElem('a', {id: 'regex_controll_replace', class: (mode === "replace" ? 'sel' : '')}, 'replace');
         
-        regexControllButtonMatch = document.createElement("a");
-        regexControllButtonMatch.setAttribute("id", "regex_controll_match");
-        if(mode === "match") regexControllButtonMatch.setAttribute("class", "sel");
-        regexControllButtonMatch.innerHTML = "match";
-        regexControllArea.appendChild(regexControllButtonMatch);
+        regexControllModifier_I    = crElem('input', {id: 'regex_controll_modifier_i', type: 'checkbox', title: modifier_I_title});
+        regexControllModifier_G    = crElem('input', {id: 'regex_controll_modifier_g', type: 'checkbox', title: modifier_G_title});
+        regexControllModifier_M    = crElem('input', {id: 'regex_controll_modifier_m', type: 'checkbox', title: modifier_M_title});
+        regexControllModifierArea  = crElem('div',   {id: 'regex_controll_modifier'}, 'Modifier: ', [
+                                        regexControllModifier_I, crElem('label', {for: 'regex_controll_modifier_i', title: modifier_I_title}, 'I'), crElem('span',{},'&nbsp;&nbsp;'),
+                                        regexControllModifier_G, crElem('label', {for: 'regex_controll_modifier_g', title: modifier_G_title}, 'G'), crElem('span',{},'&nbsp;&nbsp;'),
+                                        regexControllModifier_M, crElem('label', {for: 'regex_controll_modifier_m', title: modifier_M_title}, 'M'), crElem('span',{},'&nbsp;&nbsp;')]
+                                    );
+                            
+        regexControllModifier_I.checked = modifier_I;
+        regexControllModifier_G.checked = modifier_G;
+        regexControllModifier_M.checked = modifier_M;
+                            
+        regexControllArea = crElem('div', {id: 'regex_controll'}, false, [regexControllButtonMatch, regexControllButtonReplace, regexControllModifierArea]);
         
-        regexControllButtonReplace = document.createElement("a");
-        regexControllButtonReplace.setAttribute("id", "regex_controll_replace");
-        if(mode === "replace") regexControllButtonMatch.setAttribute("class", "sel");
-        regexControllButtonReplace.innerHTML = "replace";
-        regexControllArea.appendChild(regexControllButtonReplace);
-        
-        parentElem.appendChild(regexControllArea);
-        /* /Controlls */
-
         //Append Elements in DOM
+        parentElem.appendChild(regexControllArea);
         parentElem.appendChild(regexInputWrapperElem);
-        regexInputWrapperElem.appendChild(regexInputElem);
-        regexInputWrapperElem.appendChild(regexInputHighlightElem);
-        regexInputWrapperElem.appendChild(regexInputReplaceElem);
-        
-        
         parentElem.appendChild(regexOutputWrapperElem);
-        regexOutputWrapperElem.appendChild(regexOutputTextElem);
-        regexOutputWrapperElem.appendChild(regexOutputHighlightElem);
-        regexOutputWrapperElem.appendChild(regexOutputReplaceElem);
-        
         
         setOutputHeight();
-        
         manageEvents();
-    },
-    setOutputHeight = function()
+    }
+    
+    function setOutputHeight()
     {
         if(useCSSC)
         {
-            CSSC("#"+regexOutputTextElem.getAttribute("id")).set("height", regexOutputHighlightElem.offsetHeight+"px");
-            CSSC("#"+regexOutputReplaceElem.getAttribute("id")).set("height", regexOutputHighlightElem.offsetHeight+"px");
+            CSSC("#"+getAttr(regexOutputTextElem, "id")).set("height", regexOutputHighlightElem.offsetHeight+"px");
+            CSSC("#"+getAttr(regexOutputReplaceElem, "id")).set("height", regexOutputHighlightElem.offsetHeight+"px");
         }
         else
         {
             regexOutputTextElem.style.height = regexOutputHighlightElem.offsetHeight+"px";
             regexOutputReplaceElem.style.height = regexOutputHighlightElem.offsetHeight+"px";
         }
-    },
-    manageEvents = function()
+    }
+    
+    function manageEvents()
     {
         var keyUpParseControll = function(e)
         {
             var parsed = false;
             
-            if
-            (!(
+            if(e.keyCode === 0 || 
+            !(
                 (
                     e.keyCode <= 40 &&
                     (
@@ -163,85 +170,115 @@ var RegExer = function(appendToElem)
             return parsed;
         };
         
-        regexOutputTextElem.addEventListener("scroll", function()
-        {
-            regexOutputHighlightElem.scrollTop = this.scrollTop;
+        addEvents(regexOutputTextElem, {
+            scroll: function()
+            {
+                regexOutputHighlightElem.scrollTop = this.scrollTop;
+            },
+            change: function()
+            {
+                regexOutputHighlightElem.innerHTML = '<span>'+encode(this.value)+'</span>\n';  
+
+                regexOutputHighlightElem.scrollTop = this.scrollTop;
+
+                parse();
+            },
+            keyup: function(e)
+            {
+                keyUpParseControll(e);
+            }
         });
         
-        regexOutputTextElem.addEventListener("change", function()
-        {
-            regexOutputHighlightElem.innerHTML = '<span>'+encode(this.value)+'</span>\n';  
-            
-            regexOutputHighlightElem.scrollTop = this.scrollTop;
-            
-            parse();
-            
-        });
-        regexOutputTextElem.addEventListener("keyup", function(e)
-        {
-            keyUpParseControll(e);
-            
-        });
-        
-        regexInputElem.addEventListener("scroll", function()
-        {
-            regexInputHighlightElem.scrollTop = this.scrollTop;
-        });
-        regexInputElem.addEventListener("change", function()
-        {
-            regexInputHighlightElem.scrollTop = this.scrollTop;
+        addEvents(regexInputElem, {
+            scroll: function()
+            {
+                regexInputHighlightElem.scrollTop = this.scrollTop;
+            },
+            change: function()
+            {
+                regexInputHighlightElem.scrollTop = this.scrollTop;
+            },
+            keyup: function(e)
+            {
+                regexInputHighlightElem.scrollTop = this.scrollTop;
+
+                keyUpParseControll(e);
+            },
+            click: function(e)
+            {
+                highlight();
+            }
         });
         
-        regexInputElem.addEventListener("keyup", function(e)
-        {
-            regexInputHighlightElem.scrollTop = this.scrollTop;
-            
-            keyUpParseControll(e);
+        addEvents(regexInputReplaceElem, {
+            keyup: function(e)
+            {
+                keyUpParseControll(e);
+            }
+        });
+        addEvents(regexControllButtonReplace,{
+            click: function()
+            {
+                switchMode("replace");
+            }
+        });
+        addEvents(regexControllButtonMatch, {
+            click: function()
+            {
+                switchMode("match");
+            }
         });
         
-        regexInputReplaceElem.addEventListener("keyup", function(e)
-        {
-            keyUpParseControll(e);
+        addEvents(regexControllModifier_I, {
+            change: function()
+            {
+                modifier_I = regexControllModifier_I.checked;
+                parse();
+            }
+        });
+        addEvents(regexControllModifier_G, {
+            change: function()
+            {
+                modifier_G = regexControllModifier_G.checked;
+                parse();
+            }
+        });
+        addEvents(regexControllModifier_M, {
+            change: function()
+            {
+                modifier_M = regexControllModifier_M.checked;
+                parse();
+            }
         });
         
-        regexInputElem.addEventListener("click", function(e)
-        {
-            highlight();
+        addEvents(window, {
+            resize: function()
+            {
+                setOutputHeight();
+            }
         });
-        
-        regexControllButtonReplace.addEventListener("click", function()
-        {
-            switchMode("replace");
-        });
-        regexControllButtonMatch.addEventListener("click", function()
-        {
-            switchMode("match");
-        });
-        
-        window.addEventListener("resize", function()
-        {
-            setOutputHeight();
-        });
-    },
-    parse = function(setScrollPosition)
+    }
+    
+    function parse(setScrollPosition)
     {
         if(!regexInputElem.value) return;
             
         try
         {
-            regularExpression = new RegExp(regexInputElem.value, 'g');
+            var modifierStr = (modifier_I ? 'i' : '') + 
+                              (modifier_G ? 'g' : '') + 
+                              (modifier_M ? 'm' : '');
+            
+            regularExpression = new RegExp(regexInputElem.value, modifierStr);
             regularExpressionParser = new RegExpGrpPos(regularExpression, true);
             
-            var regMatch = regularExpressionParser.match(regexOutputTextElem.value);
+            var regMatch = regularExpressionParser.match(regexOutputTextElem.value),
+                formString = new formatedString(regexOutputTextElem.value),
+                regMatchRow, moduloPosAB, i = 0;
             
             
-            var regMatchRow, moduloPosAB;
             
-            
-            var formString = new formatedString(regexOutputTextElem.value);
-            
-            
-            for(var i = 0; i < regMatch.length; i++)
+            for(; i < regMatch.length; i++)
             {
                 regMatchRow = regMatch[i];
                 moduloPosAB = (i % 2 ? 'b' : 'a');
@@ -256,13 +293,12 @@ var RegExer = function(appendToElem)
                 }
             }
             
-            //console.log(formString.getOpts());
             
             regexOutputHighlightElem.innerHTML = '<span>'+(formString.getFormText(true))+'&nbsp;</span>';
             
             if(useCSSC)
             {
-                CSSC("textarea#"+regexInputElem.getAttribute("id")).set("border-color", "#ccc");
+                CSSC("textarea#"+getAttr(regexInputElem, "id")).set("border-color", "#ccc");
             }
             else
             {
@@ -320,7 +356,7 @@ var RegExer = function(appendToElem)
             
             if(useCSSC)
             {
-                CSSC("textarea#"+regexInputElem.getAttribute("id")).set("border-color", "#f00");
+                CSSC("textarea#"+getAttr(regexInputElem, "id")).set("border-color", "#f00");
             }
             else
             {
@@ -332,9 +368,10 @@ var RegExer = function(appendToElem)
         
         if(setScrollPosition)
             regexOutputHighlightElem.scrollTop = this.scrollTop;
-    },
-    lastHighlight = null,
-    highlight = function()
+    }
+    
+    var lastHighlight = null;
+    function highlight()
     {
         if(parseError)
         {
@@ -343,8 +380,6 @@ var RegExer = function(appendToElem)
         
         var cursorPos = regexInputElem.selectionStart;
         
-        //console.log(regexGroups.length);
-        //console.log(regexPositionToGroup);
         if(useCSSC)
         {
             for(var i = 1; i <= regexGroups.length; i++)
@@ -406,32 +441,32 @@ var RegExer = function(appendToElem)
             }
         }
         
-    },
-    switchMode = function(m)
+    }
+    
+    function switchMode(m)
     {
-        if(m != "match" && m != "replace")
-            return;
+        if(m !== "match" && m !=="replace") return;
         
-        regexControllButtonMatch.setAttribute("class", "")
-        regexControllButtonReplace.setAttribute("class", "")
+        setAttr(regexControllButtonMatch, {class: ""});
+        setAttr(regexControllButtonReplace, {class: ""});
         
         var modeElem = regexControllButtonReplace;
         
-        if(m == "match")
-            modeElem = regexControllButtonMatch;
+        if(m === "match") modeElem = regexControllButtonMatch;
         
         modeElem.classList.add("sel");
         
-        regexInputWrapperElem.setAttribute("class", m);
-        regexOutputWrapperElem.setAttribute("class", m);
+        setAttr(regexInputWrapperElem, {class: m});
+        setAttr(regexOutputWrapperElem, {class: m});
         
         setOutputHeight();
         
         mode = m;
         
         parse();
-    },
-    calcGropPositions = function()
+    }
+    
+    function calcGropPositions()
     {
         var analyseString = regexInputElem.value; 
         
@@ -443,11 +478,11 @@ var RegExer = function(appendToElem)
         {
             chr = analyseString[i];
             
-            if(analyseString[i-1] != "\\")
+            if(analyseString[i-1] !== "\\")
             {
                 toCount = true;
             }
-            else if(chr == '(' || chr == ')')
+            else if(chr === '(' || chr === ')')
             {
                 toCount = false;
                 
@@ -460,13 +495,13 @@ var RegExer = function(appendToElem)
                 }
             }
             
-            if(toCount && chr == '(')
+            if(toCount && chr === '(')
             {
                 regexGroups.push([i, null]);
                 
                 curGrp = regexGroups.length - 1; 
             }
-            else if(toCount && chr == ')')
+            else if(toCount && chr === ')')
             {
                 toBreak = false;
                 curGrp = 0;
@@ -490,8 +525,35 @@ var RegExer = function(appendToElem)
             
             regexPositionToGroup[i+1] = curGrp;
         }
-    };
+    }
     
+    this.version = VERSION;
+    this.setRegEx = function(regEx)
+    {
+        var toSet = regEx;
+        if(regEx instanceof RegExp)
+        {    
+            toSet = regEx.source;
+            
+            modifier_M = !!regEx.multiline;
+            modifier_G = !!regEx.global;
+            modifier_I = !!regEx.ignoreCase;
+            
+            regexControllModifier_I.checked = modifier_I;
+            regexControllModifier_G.checked = modifier_G;
+            regexControllModifier_M.checked = modifier_M;
+        }
+        
+        regexInputElem.innerHTML = toSet;
+        
+        parse();
+    };
+    this.setText = function(txt)
+    {
+        regexOutputTextElem.innerHTML = txt;
+        
+        parse();
+    };
     
     
     init();
@@ -513,7 +575,6 @@ var RegExpGrpPos = function(regexp, posabsolute)
     {
         var regex = myRegExp.toString();
 
-        //console.log(regex);
         var groupPos = [],
             grp = [],
             cnt = 0, 
@@ -526,7 +587,6 @@ var RegExpGrpPos = function(regexp, posabsolute)
 
             if (chr === '(' && regex[i - 1] !== "\\")
             {
-                //console.log("Pos +: " + i);
                 cnt++;
 
                 groupPos.push([cnt, i]);
@@ -534,14 +594,10 @@ var RegExpGrpPos = function(regexp, posabsolute)
             }
             else if (chr === ')' && regex[i - 1] !== "\\")
             {
-                //console.log("Pos -: " + i);
                 cnt--;
             }
             else if ((chr === '(' || chr === ')') && regex[i - 1] === "\\")
             {
-                //console.log(char);
-                //console.log(regex[i - 1]);
-
                 toCount = false;
 
                 for (var j = i - 2; j > -1; j--)
@@ -557,19 +613,14 @@ var RegExpGrpPos = function(regexp, posabsolute)
                     cnt++;
 
                     groupPos.push([cnt, i]);
-
-                    
-                    //console.log("Pos/ +: " + i);
                 }
                 else if (toCount && chr === ')')
                 {
                     cnt--;
-                    //console.log("Pos/ -: " + i);
                 }
             }
         }
 
-        //cnt muss am ende wieder 0 sein, wenn nicht ist bei der berechnung etwas schief gegangen
         return (cnt === 0 ? groupPos : false);
     },
     findPositions = function(matches)
